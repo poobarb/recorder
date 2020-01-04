@@ -194,10 +194,12 @@ void get_defaults(char *filename, struct udata *ud)
 	if (config_lookup_string(cf, "OTR_GEOKEY", &value) != CONFIG_FALSE) {
 		if (ud->geokey) free(ud->geokey);
 		ud->geokey = (value) ? strdup(value) : NULL;
+		olog(LOG_INFO, "Config file: OTR_GEOKEY: %s", ud->geokey);
 	}
 
 	if (config_lookup_int(cf, "OTR_PRECISION", &ival) != CONFIG_FALSE) {
 		geohash_setprec(ival);
+		olog(LOG_INFO, "Config file: OTR_PRECISION: %d", ival);
 	}
 
 #if WITH_HTTP

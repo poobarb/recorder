@@ -301,18 +301,22 @@ JsonNode *revgeo(struct udata *ud, double lat, double lon, UT_string *addr, UT_s
 	if (!ud->geokey || !*ud->geokey) {
 		utstring_printf(addr, "Unknown (%lf,%lf)", lat, lon);
 		utstring_printf(cc, "__");
+		olog(LOG_INFO, "revgeo: Unknown, as no geokey set");
 		return (geo);
 	}
 
 	if (strncmp(ud->geokey, "opencage:", strlen("opencage:")) == 0) {
 		utstring_printf(url, OPENCAGE_URL, lat, lon, ud->geokey + strlen("opencage:"));
+		olog(LOG_INFO, "revgeo: Using opencage");
 		geocoder = OPENCAGE;
 	} else if (strncmp(ud->geokey, "revgeod:", strlen("revgeod:")) == 0) {
 		/* revgeod:localhost:8865 */
 		utstring_printf(url, REVGEOD_URL, ud->geokey + strlen("revgeod:"), lat, lon);
+		olog(LOG_INFO, "revgeo: Using revgeod");
 		geocoder = REVGEOD;
 	} else {
 		utstring_printf(url, GOOGLE_URL, lat, lon, ud->geokey);
+		olog(LOG_INFO, "revgeo: Using google");
 		geocoder = GOOGLE;
 	}
 
@@ -333,7 +337,7 @@ JsonNode *revgeo(struct udata *ud, double lat, double lon, UT_string *addr, UT_s
 	if (res != CURLE_OK || http_code != 200) {
 		utstring_printf(addr, "revgeo failed for (%lf,%lf): HTTP status_code==%ld", lat, lon, http_code);
 		utstring_printf(cc, "__");
-		fprintf(stderr, "curl_easy_perform() failed: %s\n",
+		olog(LOG_ERR, "revgeo: curl_easy_perform() failed: %s",
 		              curl_easy_strerror(res));
 		json_delete(geo);
 		return (NULL);
@@ -353,6 +357,7 @@ JsonNode *revgeo(struct udata *ud, double lat, double lon, UT_string *addr, UT_s
 
 	if (!rc) {
 		json_delete(geo);
+		olog(LOG_INFO, "revgeo: lookup returned empty");
 		return (NULL);
 	}
 
@@ -365,6 +370,7 @@ JsonNode *revgeo(struct udata *ud, double lat, double lon, UT_string *addr, UT_s
 	json_append_member(geo, "tst", json_mknumber((double)now));
 	json_append_member(geo, "locality", (utstring_len(locality) > 0) ?
 		json_mkstring(UB(locality)) : json_mknull());
+	olog(LOG_INFO, "revgeo: suceeded: CC = %s", json_mkstring(UB(cc)));
 	return (geo);
 }
 

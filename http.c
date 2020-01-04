@@ -30,6 +30,7 @@
 #include "fences.h"
 #include "gcache.h"
 #include "storage.h"
+#include "geo.h"
 #include "geohash.h"
 #include "udata.h"
 #include "version.h"
@@ -1021,6 +1022,8 @@ static int view(struct mg_connection *conn, const char *viewname)
 			 * desired.
 			 */
 
+	debug(ud, "http: request lastpos");
+
 			if ((locarray = viewdata(conn, view, limit=1)) == NULL) {
 				return (MG_TRUE);
 			}
@@ -1265,8 +1268,47 @@ static int dispatch(struct mg_connection *conn, const char *uri)
 		char *ghash;
 
 		if (lat && lon) {
+	debug(ud, "http: lat/lon");
 			if ((ghash = geohash_encode(atof(lat), atof(lon), geohash_prec())) != NULL) {
-				geo = gcache_json_get(ud->gc, ghash);
+
+			int cached = FALSE;
+			if ((geo = gcache_json_get(ud->gc, ghash)) != NULL) {
+				/* Habemus cached data */
+                                JsonNode *j;
+
+			        cached = TRUE;
+	
+				if ((j = json_find_member(geo, "cc")) == NULL) {
+				cached = FALSE;
+                                }
+                           
+				if ((j = json_find_member(geo, "addr")) == NULL) {
+				cached = FALSE;
+                                }
+			} 
+	debug(ud, "http: cache test: %d %d", cached, ud->revgeo);
+                        if (!cached && ud->revgeo == TRUE) {
+		
+				if (geohash_prec() > 0) {
+						/* We didn't obtain reverse Geo, maybe because of over
+						 * quota; make a note of the missing geohash */
+	
+						char gfile[BUFSIZ];
+						FILE *fp;
+	
+						snprintf(gfile, BUFSIZ, "%s/ghash/missing", STORAGEDIR);
+
+			debug(ud, "http: recording missing geohash to file %s", gfile);
+
+						if ((fp = fopen(gfile, "a")) != NULL) {
+							fprintf(fp, "%s %s %s\n", ghash, lat, lon);
+							fclose(fp);
+						} else {
+	debug(ud, "http: failed to open file %s", gfile);
+}
+				}
+			}
+
 				free(ghash);
 			}
 		}

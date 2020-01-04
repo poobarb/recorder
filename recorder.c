@@ -859,6 +859,7 @@ void handle_message(void *userdata, char *topic, char *payload, size_t payloadle
 		free(p);
 	}
 
+        debug(ud, " >> evaluate ud->revgeo = %d",ud->revgeo);
 
 	cached = FALSE;
 	if (ud->revgeo == TRUE) {
@@ -880,18 +881,26 @@ void handle_message(void *userdata, char *topic, char *payload, size_t payloadle
 			}
 		} else {
 #endif /* WITH_LUA */
+        debug(ud, " >> check cached");
 			if ((geo = gcache_json_get(ud->gc, UB(ghash))) != NULL) {
 				/* Habemus cached data */
-				
+				   debug(ud, " >> cached == TRUE");
 				cached = TRUE;
 	
 				if ((j = json_find_member(geo, "cc")) != NULL) {
 					utstring_printf(cc, "%s", j->string_);
-				}
+				} else {
+				cached = FALSE;
+                                }
+                           
 				if ((j = json_find_member(geo, "addr")) != NULL) {
 					utstring_printf(addr, "%s", j->string_);
-				}
-			} else {
+				} else {
+				cached = FALSE;
+                                }
+			} 
+                        if (!cached) {
+				   debug(ud, " >> cached == FALSE");
 				if (geoprec > 0) {
 					if ((geo = revgeo(ud, lat, lon, addr, cc)) != NULL) {
 						gcache_json_put(ud->gc, UB(ghash), geo);
